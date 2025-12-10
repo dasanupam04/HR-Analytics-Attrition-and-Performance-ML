@@ -66,4 +66,17 @@ Job Satisfaction vs Attrition
 
 
 
+6️⃣ Correlation Heatmap
+
+A full correlation matrix visualizes:
+
+    Salary relationships
+    Experience connections
+    Satisfaction factors
+    Promotion vs Performance
+    Attrition-related correlations
+
+This heatmap helps identify strong predictive features for the ML models.
+
+
 
