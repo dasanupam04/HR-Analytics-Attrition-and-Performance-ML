@@ -38,10 +38,31 @@ A deep EDA was performed to understand employee demographics, satisfaction, inco
 
     
 
+5️⃣ Visual HR Insights
 
+Average Monthly Income by Job Level
 
-    
+    Bar chart showing salary progression with job seniority.
 
+Monthly Income by Attrition (Violin + Box Plot)
+
+    Reveals whether lower-paid employees leave more often.
+
+Attrition Rate by Job Role
+
+    Highlights job roles with the highest churn.
+
+Experience vs Income (Regression Plot)
+
+    Shows a positive correlation between working years and salary.
+
+Work-Life Balance vs Attrition
+
+    Reveals how poor WLB drives employees to leave.
+
+Job Satisfaction vs Attrition
+
+    Bar chart comparing satisfaction levels to attrition counts.
 
 
 
