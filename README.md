@@ -9,7 +9,7 @@ It includes:
     📈 Interactive Predictions using user input
 
 
-📊 1. Exploratory Data Analysis (EDA)
+📊 Exploratory Data Analysis (EDA)
 
 A deep EDA was performed to understand employee demographics, satisfaction, income distribution, and attrition trends.
 
@@ -38,45 +38,49 @@ A deep EDA was performed to understand employee demographics, satisfaction, inco
 
     
 
-5️⃣ Visual HR Insights
+📉 1.5 Visual HR Insights
 
-Average Monthly Income by Job Level
+Income and Growth
+      
+      Bar chart showing Average Monthly Income by Job Level
+      Regression plot showing Working Years vs Income
 
-    Bar chart showing salary progression with job seniority.
+Attrition Behavior
+     
+     Violin + box plot of Monthly Income vs Attrition
+     Attrition rate by Job Role
+     Attrition rate by Work-Life Balance
+     Attrition rate by Job Satisfaction
 
-Monthly Income by Attrition (Violin + Box Plot)
 
-    Reveals whether lower-paid employees leave more often.
-
-Attrition Rate by Job Role
-
-    Highlights job roles with the highest churn.
-
-Experience vs Income (Regression Plot)
-
-    Shows a positive correlation between working years and salary.
-
-Work-Life Balance vs Attrition
-
-    Reveals how poor WLB drives employees to leave.
-
-Job Satisfaction vs Attrition
-
-    Bar chart comparing satisfaction levels to attrition counts.
+Heatmap
+    
+    A full correlation heatmap reveals:
+    Strong predictors of income
+    Factors impacting attrition
+    Relationships between satisfaction, experience, and job level
+    This EDA forms the foundation for selecting features for ML models.
 
 
 
-6️⃣ Correlation Heatmap
+🤖 2. Machine Learning Models
 
-A full correlation matrix visualizes:
-
-    Salary relationships
-    Experience connections
-    Satisfaction factors
-    Promotion vs Performance
-    Attrition-related correlations
-
-This heatmap helps identify strong predictive features for the ML models.
+Three ML models were implemented to solve different HR problems:
 
 
+🟦 2.1 Monthly Income Prediction (Linear Regression)
 
+Goal: Predict an employee’s monthly income based on:
+    
+    Age
+    Job level
+    Job experience
+    Salary hike percentage
+    Number of companies worked
+    Current employee status
+
+Outputs:
+    
+    R² Score
+    RMSE
+    Predicted monthly income from user inputs
