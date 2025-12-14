@@ -12,6 +12,7 @@ It includes:
 
 📊 Exploratory Data Analysis (EDA)
 
+
 A deep EDA was performed to understand employee demographics, satisfaction, income distribution, and attrition trends.
 
     📌 1.1 Data Distributions
