@@ -70,6 +70,7 @@ Heatmap
 Three ML models were implemented to solve different HR problems:
 
 
+
 🟦 2.1 Monthly Income Prediction (Linear Regression)
 
 Goal: Predict an employee’s monthly income based on:
