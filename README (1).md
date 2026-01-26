@@ -354,13 +354,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👨‍💻 Author
 
 **Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
-- Email: your.email@example.com
+- GitHub: [@dasanupam04](https://github.com/dasanupam04)
+- LinkedIn: [@anupamdas60721a275](https://linkedin.com/in/anupamdas60721a275)
+- Email: dasanupamanu@gmail.com
 
 ## 🙏 Acknowledgments
 
-- Dataset source: [Specify source if applicable]
+- Dataset source: [IBM Kaggle Dataset]
 - Inspired by real-world HR analytics challenges
 - Built with ❤️ for the HR and Data Science communities
 
