@@ -20,7 +20,7 @@ All models are trained using real-world HR-style features such as job level, exp
 
 **🧠 Models Implemented**
 
-1️⃣ Monthly Income Prediction
+*1️⃣ Monthly Income Prediction*
     
     Type: Linear Regression
     Goal: Estimate an employee’s monthly salary based on experience, job level, and career history.
@@ -47,7 +47,7 @@ Evaluation Metrics:
 
 
 
-2️⃣ Employee Attrition Prediction
+*2️⃣ Employee Attrition Prediction*
     
     Type: Random Forest Classifier
     Goal: Predict the probability of an employee leaving the company.
@@ -65,10 +65,66 @@ Key Features Used:
     Distance from Home
     Years Since Last Promotion
     Years with Current Manager
-    Evaluation Metrics
+    
+Evaluation Metrics: 
+    
     Accuracy
     Confusion Matrix
     Classification Report
     Attrition Risk Probability Score
 
 Model saved as: attrition_model.pkl
+
+
+*3️⃣ Department Classification*
+    
+    Type: Random Forest Classifier
+    Goal: Predict which department an employee belongs to based on job and compensation attributes.
+
+
+Key Features Used:
+    
+    Age
+    Job Level
+    Years at Company
+    Monthly Income
+    Job Satisfaction
+    
+Evaluation Metric:
+    
+    Accuracy Score
+
+Model saved as: department_model.pkl
+
+
+*📈 Exploratory Data Analysis*
+
+A correlation heatmap is generated to understand relationships between numerical variables:
+
+    Identifies strong predictors
+    Helps detect multicollinearity
+    Guides feature selection
+
+
+🛠️ Tech Stack
+
+    Python
+    Pandas, NumPy – Data processing
+    Seaborn, Matplotlib – Visualization
+    Scikit-learn – Machine Learning
+    Joblib – Model serialization
+
+
+*▶️ How to Run*
+
+    Clone the repository
+    Place the dataset CSV file in the project directory
+    Install dependencies:
+
+
+    pip install pandas numpy matplotlib seaborn scikit-learn joblib
+
+
+
+
+
