@@ -21,10 +21,9 @@ All models are trained using real-world HR-style features such as job level, exp
 **🧠 Models Implemented**
 
 1️⃣ Monthly Income Prediction
-
-Type: Linear Regression
-
-Goal: Estimate an employee’s monthly salary based on experience, job level, and career history.
+    
+    Type: Linear Regression
+    Goal: Estimate an employee’s monthly salary based on experience, job level, and career history.
 
 Key Features Used:
       
@@ -48,3 +47,28 @@ Evaluation Metrics:
 
 
 
+2️⃣ Employee Attrition Prediction
+    
+    Type: Random Forest Classifier
+    Goal: Predict the probability of an employee leaving the company.
+    
+
+Key Features Used:
+    
+    Age
+    Monthly Income
+    Job Level
+    Job Satisfaction
+    Environment Satisfaction
+    Work Life Balance
+    Overtime
+    Distance from Home
+    Years Since Last Promotion
+    Years with Current Manager
+    Evaluation Metrics
+    Accuracy
+    Confusion Matrix
+    Classification Report
+    Attrition Risk Probability Score
+
+Model saved as: attrition_model.pkl
