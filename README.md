@@ -122,8 +122,17 @@ A correlation heatmap is generated to understand relationships between numerical
 3. Install dependencies:
    
        pip install pandas numpy matplotlib seaborn scikit-learn joblib
+   
+5. Run the script:
+
+       python hr_analytics.py
 
 
+The program will:
+  
+  Train models
+  Display performance metrics
+  Allow manual input for real-time predictions
 
 
 
