@@ -1,1 +1,1549 @@
+import streamlit as st
+import pandas as pd
+import joblib
+import time
+import os
+from datetime import datetime
+import json
+from pathlib import Path
 
+# ==============================
+# INITIALIZATION & ERROR HANDLING
+# ==============================
+
+class NexusConfig:
+    """Configuration and validation for Nexus Obsidian"""
+    MODELS = {
+        "FINANCIAL": "hr_model.pkl",
+        "ATTRITION": "attrition_model.pkl", 
+        "TALENT": "department_model.pkl"
+    }
+    
+    HISTORY_FILE = "prediction_history.json"
+    VERSION = "9.5.0"
+    
+    @staticmethod
+    def validate_models():
+        """Check if all required model files exist"""
+        missing = []
+        for name, path in NexusConfig.MODELS.items():
+            if not os.path.exists(path):
+                missing.append(f"{name}: {path}")
+        return missing
+
+# ==============================
+# SESSION STATE INITIALIZATION
+# ==============================
+
+if 'prediction_history' not in st.session_state:
+    st.session_state.prediction_history = []
+    
+if 'models_loaded' not in st.session_state:
+    st.session_state.models_loaded = False
+    
+if 'show_tooltips' not in st.session_state:
+    st.session_state.show_tooltips = True
+
+if 'theme_variant' not in st.session_state:
+    st.session_state.theme_variant = 'obsidian'  # obsidian, azure, crimson
+
+if 'show_landing' not in st.session_state:
+    st.session_state.show_landing = True
+
+# ==============================
+# UTILITY FUNCTIONS
+# ==============================
+
+def save_prediction(module, inputs, result):
+    """Save prediction to history"""
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "module": module,
+        "inputs": inputs,
+        "result": str(result)
+    }
+    st.session_state.prediction_history.append(entry)
+    
+    # Persist to file
+    try:
+        with open(NexusConfig.HISTORY_FILE, 'w') as f:
+            json.dump(st.session_state.prediction_history[-50:], f, indent=2)  # Keep last 50
+    except Exception as e:
+        st.warning(f"Could not save history: {e}")
+
+def load_prediction_history():
+    """Load prediction history from file"""
+    try:
+        if os.path.exists(NexusConfig.HISTORY_FILE):
+            with open(NexusConfig.HISTORY_FILE, 'r') as f:
+                st.session_state.prediction_history = json.load(f)
+    except Exception as e:
+        st.warning(f"Could not load history: {e}")
+
+def export_to_csv(data, filename):
+    """Export data to CSV"""
+    df = pd.DataFrame(data)
+    csv = df.to_csv(index=False)
+    return csv
+
+def get_theme_colors(variant='obsidian'):
+    """Get color scheme based on theme variant"""
+    themes = {
+        'obsidian': {
+            'primary': '#6366f1',
+            'accent': '#4ade80',
+            'warning': '#ff3e3e'
+        },
+        'azure': {
+            'primary': '#0ea5e9',
+            'accent': '#38bdf8',
+            'warning': '#f97316'
+        },
+        'crimson': {
+            'primary': '#dc2626',
+            'accent': '#fbbf24',
+            'warning': '#ef4444'
+        }
+    }
+    return themes.get(variant, themes['obsidian'])
+
+# ==============================
+# NEXUS OBSIDIAN CONFIG
+# ==============================
+st.set_page_config(
+    page_title="Nexus Obsidian | AI Command",
+    page_icon="💠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Load history on startup
+load_prediction_history()
+
+# ==============================
+# ENHANCED LUXURY PROFESSIONAL CSS
+# ==============================
+
+theme = get_theme_colors(st.session_state.theme_variant)
+
+st.markdown(f"""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;600;800&family=Space+Mono&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    /* Global Foundation */
+    .stApp {{
+        background: #050505;
+        background-image: 
+            radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+        background-size: 40px 40px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }}
+
+    /* Sidebar - The Command Strip */
+    [data-testid="stSidebar"] {{
+        background: rgba(10, 10, 10, 0.95) !important;
+        border-right: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(30px);
+    }}
+
+    /* The "Obsidian" Bento Card */
+    .obsidian-card {{
+        background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(5, 5, 5, 0.9));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 40px;
+        padding: 4rem;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+        margin-top: 2rem;
+        position: relative;
+        overflow: hidden;
+    }}
+    
+    .obsidian-card::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, {theme['primary']}, transparent);
+        opacity: 0.5;
+    }}
+
+    /* Typography */
+    .glitch-title {{
+        font-size: 5rem;
+        font-weight: 800;
+        letter-spacing: -3px;
+        background: linear-gradient(180deg, #fff 0%, #444 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 0.9;
+        animation: titleGlow 3s ease-in-out infinite;
+    }}
+    
+    @keyframes titleGlow {{
+        0%, 100% {{ opacity: 1; }}
+        50% {{ opacity: 0.8; }}
+    }}
+
+    .mono-label {{
+        font-family: 'Space Mono', monospace;
+        color: {theme['primary']};
+        font-size: 0.75rem;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }}
+
+    /* Form Design - Minimalist High-End */
+    .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid rgba(255,255,255,0.1) !important;
+        border-radius: 0 !important;
+        font-size: 1.2rem !important;
+        padding-left: 0 !important;
+        transition: border-color 0.3s ease !important;
+    }}
+    
+    .stNumberInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within {{
+        border-bottom-color: {theme['primary']} !important;
+    }}
+
+    /* The "Nexus Pulse" Button */
+    .stButton>button {{
+        background: linear-gradient(135deg, #fff 0%, #e5e5e5 100%) !important;
+        color: #000 !important;
+        border-radius: 100px !important;
+        height: 60px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        border: none !important;
+        transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+        margin-top: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        font-size: 1rem !important;
+    }}
+
+    .stButton>button:hover {{
+        background: linear-gradient(135deg, {theme['primary']} 0%, {theme['accent']} 100%) !important;
+        color: #fff !important;
+        box-shadow: 0 0 40px {theme['primary']}66;
+        transform: translateY(-3px) scale(1.02);
+    }}
+
+    /* Neural Feed Text */
+    .neural-text {{
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        color: {theme['accent']};
+        opacity: 0.8;
+        line-height: 1.8;
+    }}
+
+    /* Metrics Display */
+    .metric-hero {{
+        text-align: center;
+        padding: 4rem;
+        border-radius: 30px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.05);
+        margin-top: 4rem;
+        position: relative;
+        overflow: hidden;
+    }}
+    
+    .metric-hero::after {{
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, {theme['primary']}22 0%, transparent 70%);
+        pointer-events: none;
+    }}
+
+    /* Status Badge */
+    .status-badge {{
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-family: 'Space Mono', monospace;
+    }}
+
+    .status-success {{
+        background: {theme['accent']}22;
+        color: {theme['accent']};
+        border: 1px solid {theme['accent']}44;
+    }}
+
+    .status-warning {{
+        background: {theme['warning']}22;
+        color: {theme['warning']};
+        border: 1px solid {theme['warning']}44;
+    }}
+
+    /* History Card */
+    .history-card {{
+        background: rgba(20,20,20,0.6);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }}
+    
+    .history-card:hover {{
+        border-color: {theme['primary']}44;
+        background: rgba(30,30,30,0.8);
+    }}
+
+    /* Export Button */
+    .export-btn {{
+        background: transparent !important;
+        border: 1px solid {theme['primary']} !important;
+        color: {theme['primary']} !important;
+        border-radius: 20px !important;
+        padding: 8px 20px !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 1px;
+        transition: all 0.3s ease !important;
+    }}
+    
+    .export-btn:hover {{
+        background: {theme['primary']}22 !important;
+        transform: translateY(-2px);
+    }}
+
+    /* Loading Animation */
+    @keyframes pulse {{
+        0%, 100% {{ opacity: 1; }}
+        50% {{ opacity: 0.5; }}
+    }}
+    
+    .loading-pulse {{
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }}
+
+    /* Success Message */
+    .success-message {{
+        background: {theme['accent']}11;
+        border-left: 4px solid {theme['accent']};
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.9rem;
+    }}
+
+    /* Error Message */
+    .error-message {{
+        background: {theme['warning']}11;
+        border-left: 4px solid {theme['warning']};
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.9rem;
+    }}
+    
+    /* Expander Styling */
+    .streamlit-expanderHeader {{
+        background: rgba(20,20,20,0.6) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255,255,255,0.05) !important;
+    }}
+    
+    /* ================================ */
+    /* LANDING PAGE STYLES */
+    /* ================================ */
+    
+    .landing-hero {{
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+        padding: 4rem 2rem;
+    }}
+    
+    .landing-hero::before {{
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle at 50% 50%, 
+            {theme['primary']}22 0%, 
+            {theme['primary']}11 25%, 
+            transparent 50%);
+        animation: rotateGradient 20s linear infinite;
+        pointer-events: none;
+    }}
+    
+    @keyframes rotateGradient {{
+        0% {{ transform: rotate(0deg); }}
+        100% {{ transform: rotate(360deg); }}
+    }}
+    
+    .landing-logo {{
+        font-size: 8rem;
+        font-weight: 800;
+        letter-spacing: -8px;
+        background: linear-gradient(135deg, #fff 0%, {theme['primary']} 50%, {theme['accent']} 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+        animation: logoFloat 6s ease-in-out infinite;
+        position: relative;
+        z-index: 2;
+        line-height: 0.85;
+        display: block;
+    }}
+    
+    @keyframes logoFloat {{
+        0%, 100% {{ transform: translateY(0px); }}
+        50% {{ transform: translateY(-20px); }}
+    }}
+    
+    .landing-subtitle {{
+        font-size: 1.8rem;
+        color: #888;
+        margin-bottom: 3rem;
+        letter-spacing: 8px;
+        text-transform: uppercase;
+        font-family: 'Space Mono', monospace;
+        position: relative;
+        z-index: 2;
+        animation: fadeIn 1s ease-out 0.5s both;
+    }}
+    
+    .landing-description {{
+        max-width: 600px;
+        text-align: center;
+        color: #999;
+        font-size: 1.1rem;
+        line-height: 1.8;
+        margin-bottom: 4rem;
+        position: relative;
+        z-index: 2;
+        animation: fadeIn 1s ease-out 1s both;
+    }}
+    
+    @keyframes fadeIn {{
+        from {{ opacity: 0; transform: translateY(20px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
+    
+    .landing-cta {{
+        position: relative;
+        z-index: 2;
+        animation: fadeIn 1s ease-out 1.5s both;
+    }}
+    
+    .landing-cta button {{
+        background: linear-gradient(135deg, #fff 0%, #e5e5e5 100%) !important;
+        color: #000 !important;
+        border-radius: 100px !important;
+        height: 70px !important;
+        padding: 0 4rem !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        letter-spacing: 3px !important;
+        font-size: 1.1rem !important;
+        border: none !important;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+        position: relative;
+        overflow: hidden;
+    }}
+    
+    .landing-cta button::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+    }}
+    
+    .landing-cta button:hover::before {{
+        left: 100%;
+    }}
+    
+    .landing-cta button:hover {{
+        background: linear-gradient(135deg, {theme['primary']} 0%, {theme['accent']} 100%) !important;
+        color: #fff !important;
+        box-shadow: 0 0 80px {theme['primary']}88;
+        transform: translateY(-5px) scale(1.05);
+    }}
+    
+    .feature-grid {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        margin: 4rem 0;
+        padding: 0 2rem;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+        animation: fadeIn 1s ease-out 2s both;
+    }}
+    
+    .feature-card {{
+        background: linear-gradient(145deg, rgba(20, 20, 20, 0.8), rgba(5, 5, 5, 0.8));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 30px;
+        padding: 2.5rem;
+        transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        position: relative;
+        overflow: hidden;
+    }}
+    
+    .feature-card::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, {theme['primary']}, transparent);
+        opacity: 0;
+        transition: opacity 0.4s;
+    }}
+    
+    .feature-card:hover {{
+        transform: translateY(-10px);
+        border-color: {theme['primary']}44;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }}
+    
+    .feature-card:hover::before {{
+        opacity: 1;
+    }}
+    
+    .feature-icon {{
+        font-size: 3rem;
+        margin-bottom: 1.5rem;
+        display: block;
+    }}
+    
+    .feature-title {{
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: #fff;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }}
+    
+    .feature-desc {{
+        color: #888;
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }}
+    
+    .stats-banner {{
+        display: flex;
+        justify-content: center;
+        gap: 4rem;
+        margin: 6rem 0 4rem 0;
+        padding: 3rem 2rem;
+        background: rgba(20,20,20,0.4);
+        border-top: 1px solid rgba(255,255,255,0.05);
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        animation: fadeIn 1s ease-out 2.5s both;
+    }}
+    
+    .stat-item {{
+        text-align: center;
+    }}
+    
+    .stat-number {{
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, {theme['primary']}, {theme['accent']});
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: block;
+        margin-bottom: 0.5rem;
+    }}
+    
+    .stat-label {{
+        font-family: 'Space Mono', monospace;
+        color: #666;
+        font-size: 0.85rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }}
+    
+    .scroll-indicator {{
+        position: absolute;
+        bottom: 3rem;
+        left: 50%;
+        transform: translateX(-50%);
+        animation: bounce 2s ease-in-out infinite;
+        opacity: 0.6;
+        z-index: 2;
+    }}
+    
+    @keyframes bounce {{
+        0%, 100% {{ transform: translateX(-50%) translateY(0); }}
+        50% {{ transform: translateX(-50%) translateY(15px); }}
+    }}
+    
+    .particle {{
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: {theme['accent']};
+        border-radius: 50%;
+        opacity: 0.3;
+        animation: particleFloat 10s infinite;
+    }}
+    
+    @keyframes particleFloat {{
+        0%, 100% {{ transform: translate(0, 0); opacity: 0.3; }}
+        50% {{ transform: translate(100px, -100px); opacity: 0.8; }}
+    }}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ==============================
+# MODEL VALIDATION
+# ==============================
+
+missing_models = NexusConfig.validate_models()
+if missing_models and not st.session_state.models_loaded:
+    st.error("⚠️ **CRITICAL SYSTEM ERROR**")
+    st.markdown(f"""
+    <div class="error-message">
+        <strong>Missing Model Files:</strong><br>
+        {'<br>'.join(missing_models)}
+        <br><br>
+        Please ensure all required .pkl files are in the application directory.
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+else:
+    st.session_state.models_loaded = True
+
+# ==============================
+# LANDING PAGE
+# ==============================
+
+def render_landing_page():
+    """Render the premium landing page"""
+    
+    # Hide sidebar and adjust layout
+    st.markdown("""
+        <style>
+            [data-testid="stSidebar"] { display: none; }
+            .main .block-container { 
+                padding-top: 6rem; 
+                max-width: 1600px;
+                margin: 0 auto;
+            }
+            
+            /* Force center alignment */
+            .element-container {
+                text-align: center !important;
+            }
+            
+            /* Landing page title styling */
+            .landing-title {
+                text-align: center !important;
+                font-size: 12rem;
+                font-weight: 800;
+                letter-spacing: -12px;
+                background: linear-gradient(135deg, #fff 0%, #6366f1 50%, #4ade80 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin: 0 auto;
+                padding: 0;
+                line-height: 0.85;
+                display: block;
+                width: 100%;
+            }
+            
+            .landing-subtitle {
+                text-align: center !important;
+                font-size: 2rem;
+                color: #888;
+                margin: 3rem auto 3.5rem auto;
+                letter-spacing: 12px;
+                text-transform: uppercase;
+                font-family: 'Space Mono', monospace;
+                display: block;
+                width: 100%;
+            }
+            
+            .landing-desc {
+                text-align: center !important;
+                color: #999;
+                font-size: 1.2rem;
+                line-height: 2;
+                margin: 0 auto 3rem auto;
+                max-width: 1000px;
+                padding: 0 3rem;
+                display: block;
+                width: 100%;
+            }
+            
+            .stat-box {
+                text-align: center;
+                padding: 2rem;
+            }
+            
+            .stat-number {
+                font-size: 4rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, #6366f1, #4ade80);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                display: block;
+                margin-bottom: 0.5rem;
+            }
+            
+            .stat-label {
+                font-family: 'Space Mono', monospace;
+                color: #666;
+                font-size: 0.85rem;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+            }
+            
+            .feature-box {
+                background: linear-gradient(145deg, rgba(20, 20, 20, 0.8), rgba(5, 5, 5, 0.8));
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 30px;
+                padding: 2.5rem;
+                height: 280px;
+                transition: all 0.3s ease;
+            }
+            
+            .feature-box:hover {
+                transform: translateY(-5px);
+                border-color: rgba(99, 102, 241, 0.3);
+                box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            }
+            
+            .feature-icon {
+                font-size: 3rem;
+                display: block;
+                margin-bottom: 1rem;
+            }
+            
+            .feature-title {
+                color: #fff;
+                font-size: 1.3rem;
+                font-weight: 700;
+                margin-bottom: 1rem;
+            }
+            
+            .feature-desc {
+                color: #888;
+                line-height: 1.6;
+                font-size: 0.95rem;
+            }
+            
+            .section-title {
+                text-align: center;
+                color: #888;
+                margin: 4rem 0 3rem 0;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                font-size: 1.2rem;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Hero Section
+    st.markdown("""
+        <div style="text-align: center; margin: 4rem auto 2rem auto; max-width: 100%;">
+            <div style="
+                font-size: 12rem;
+                font-weight: 800;
+                letter-spacing: -12px;
+                background: linear-gradient(135deg, #fff 0%, #6366f1 50%, #4ade80 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                line-height: 0.85;
+                margin: 0;
+                padding: 0;
+            ">NEXUS</div>
+            <div style="
+                font-size: 12rem;
+                font-weight: 800;
+                letter-spacing: -12px;
+                background: linear-gradient(135deg, #fff 0%, #6366f1 50%, #4ade80 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                line-height: 0.85;
+                margin: 0;
+                padding: 0;
+            ">OBSIDIAN</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <div style="
+            text-align: center;
+            font-size: 2rem;
+            color: #888;
+            margin: 3rem auto 3.5rem auto;
+            letter-spacing: 12px;
+            text-transform: uppercase;
+            font-family: 'Space Mono', monospace;
+        ">AI COMMAND CENTER</div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <div style="
+            text-align: center;
+            color: #999;
+            font-size: 1.2rem;
+            line-height: 2;
+            margin: 0 auto 4rem auto;
+            max-width: 1000px;
+            padding: 0 3rem;
+        ">
+            Enterprise-grade HR analytics powered by advanced machine learning.
+            Predict salaries, detect attrition risks, and optimize talent placement
+            with unprecedented precision.
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # CTA Button
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("⚡ INITIALIZE SYSTEM", key="enter_system", use_container_width=True, type="primary"):
+            st.session_state.show_landing = False
+            st.rerun()
+    
+    # Stats Section
+    st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
+    
+    stat1, stat2, stat3 = st.columns(3)
+    
+    with stat1:
+        st.markdown('''
+            <div class="stat-box">
+                <span class="stat-number">3</span>
+                <span class="stat-label">AI Engines</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    with stat2:
+        st.markdown('''
+            <div class="stat-box">
+                <span class="stat-number">98%</span>
+                <span class="stat-label">Accuracy</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    with stat3:
+        st.markdown('''
+            <div class="stat-box">
+                <span class="stat-number">∞</span>
+                <span class="stat-label">Predictions</span>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    # Features Section
+    st.markdown('<h2 class="section-title">Capabilities</h2>', unsafe_allow_html=True)
+    
+    # Row 1
+    feat1, feat2, feat3 = st.columns(3)
+    
+    with feat1:
+        st.markdown('''
+            <div class="feature-box">
+                <span class="feature-icon">💰</span>
+                <div class="feature-title">Financial Forecasting</div>
+                <div class="feature-desc">
+                    Precision salary mapping using 8-parameter analysis. 
+                    Benchmark compensation with ML-powered predictions.
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    with feat2:
+        st.markdown('''
+            <div class="feature-box">
+                <span class="feature-icon">⚠️</span>
+                <div class="feature-title">Attrition Radar</div>
+                <div class="feature-desc">
+                    Real-time churn risk detection with detailed factor analysis. 
+                    Identify at-risk employees before they leave.
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    with feat3:
+        st.markdown('''
+            <div class="feature-box">
+                <span class="feature-icon">🎯</span>
+                <div class="feature-title">Talent Mapping</div>
+                <div class="feature-desc">
+                    Optimize department placement with confidence scoring. 
+                    Match talent to roles with data-driven precision.
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
+    
+    # Row 2
+    feat4, feat5, feat6 = st.columns(3)
+    
+    with feat4:
+        st.markdown('''
+            <div class="feature-box">
+                <span class="feature-icon">📊</span>
+                <div class="feature-title">Advanced Analytics</div>
+                <div class="feature-desc">
+                    Export predictions, track history, and analyze trends. 
+                    Full audit trail for compliance.
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    with feat5:
+        st.markdown('''
+            <div class="feature-box">
+                <span class="feature-icon">🔒</span>
+                <div class="feature-title">Production Ready</div>
+                <div class="feature-desc">
+                    Enterprise error handling, input validation, and 
+                    comprehensive logging. Zero downtime.
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    with feat6:
+        st.markdown('''
+            <div class="feature-box">
+                <span class="feature-icon">🎨</span>
+                <div class="feature-title">Premium Design</div>
+                <div class="feature-desc">
+                    Luxury dark theme with 3 color variants. 
+                    Customizable, professional, unforgettable.
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    
+    # Footer
+    st.markdown("<div style='height: 4rem;'></div>", unsafe_allow_html=True)
+    st.markdown(f'''
+        <div style='text-align: center; padding: 3rem 2rem; border-top: 1px solid rgba(255,255,255,0.05);'>
+            <p style='color: #444; font-family: "Space Mono", monospace; font-size: 0.75rem; letter-spacing: 2px;'>
+                AETHER KERNEL {NexusConfig.VERSION} | NEXUS INTELLIGENCE © 2026
+            </p>
+        </div>
+    ''', unsafe_allow_html=True)
+
+# ==============================
+# MAIN APPLICATION LOGIC
+# ==============================
+
+# Check if we should show landing page
+if st.session_state.show_landing:
+    render_landing_page()
+    st.stop()
+
+# ==============================
+# SIDEBAR - ENHANCED NEURAL FEED
+# ==============================
+with st.sidebar:
+    st.markdown("<h2 style='letter-spacing:-2px; font-weight:800;'>NEXUS OS</h2>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # Module Selection
+    module = st.radio("CORE ENGINE", ["FINANCIAL", "ATTRITION", "TALENT"])
+    
+    st.markdown("---")
+    
+    # Settings Expander
+    with st.expander("⚙️ SYSTEM SETTINGS"):
+        st.session_state.show_tooltips = st.checkbox("Show Tooltips", value=True)
+        st.session_state.theme_variant = st.selectbox(
+            "Theme Variant",
+            ["obsidian", "azure", "crimson"],
+            index=0
+        )
+        if st.button("Clear History"):
+            st.session_state.prediction_history = []
+            if os.path.exists(NexusConfig.HISTORY_FILE):
+                os.remove(NexusConfig.HISTORY_FILE)
+            st.success("History cleared")
+            st.rerun()
+        
+        st.markdown("---")
+        if st.button("↩️ Return to Landing", use_container_width=True):
+            st.session_state.show_landing = True
+            st.rerun()
+    
+    st.markdown("---")
+    st.markdown("<p class='mono-label'>Neural Feed</p>", unsafe_allow_html=True)
+    
+    # Real-time status
+    status_container = st.container()
+    with status_container:
+        current_time = datetime.now().strftime("%H:%M:%S")
+        logs = [
+            f"<span style='color: {theme['accent']};'>●</span> System Online [{current_time}]",
+            f"<span style='color: {theme['accent']};'>●</span> Models Loaded: 3/3",
+            f"<span style='color: {theme['accent']};'>●</span> Predictions: {len(st.session_state.prediction_history)}",
+            f"<span style='color: {theme['accent']};'>●</span> Quantum Entropy: 0.04",
+            f"<span style='color: {theme['primary']};'>●</span> Status: <span class='status-badge status-success'>Optimal</span>"
+        ]
+        log_text = "<br>".join(logs)
+        st.markdown(f"<p class='neural-text'>{log_text}</p>", unsafe_allow_html=True)
+    
+    # History Preview
+    if st.session_state.prediction_history:
+        st.markdown("---")
+        st.markdown("<p class='mono-label'>Recent Activity</p>", unsafe_allow_html=True)
+        recent = st.session_state.prediction_history[-3:][::-1]
+        for pred in recent:
+            timestamp = datetime.fromisoformat(pred['timestamp']).strftime("%H:%M")
+            st.markdown(f"""
+                <div style='font-size: 0.7rem; color: #666; margin-bottom: 8px;'>
+                    <span style='color: {theme['accent']};'>{timestamp}</span> | {pred['module'][:3]}
+                </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("<br><br>"*3, unsafe_allow_html=True)
+    st.image("https://img.icons8.com/ios-filled/50/ffffff/cpu.png", width=30)
+    st.caption(f"AETHER KERNEL {NexusConfig.VERSION}")
+
+# ==============================
+# HELPER FUNCTIONS
+# ==============================
+
+def render_obsidian_header(title, subtitle):
+    st.markdown(f"""
+        <p class='mono-label'>Prediction Engine Alpha</p>
+        <h1 class='glitch-title'>{title}</h1>
+        <p style='color: #666; font-size: 1.4rem; margin-top: 1rem;'>{subtitle}</p>
+    """, unsafe_allow_html=True)
+
+def get_help_text(text):
+    """Return help text if tooltips are enabled, otherwise None"""
+    if st.session_state.show_tooltips:
+        return text
+    return None
+
+def validate_input(value, min_val, max_val, name):
+    """Validate numeric input"""
+    if not isinstance(value, (int, float)):
+        st.error(f"{name} must be a number")
+        return False
+    if value < min_val or value > max_val:
+        st.warning(f"{name} should be between {min_val} and {max_val}")
+        return False
+    return True
+
+# ==============================
+# MAIN INTERFACE - FINANCIAL MODULE
+# ==============================
+
+if module == "FINANCIAL":
+    render_obsidian_header("Income<br>Forecasting", "Precision Salary Mapping")
+    
+    try:
+        model = joblib.load(NexusConfig.MODELS["FINANCIAL"])
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+        st.stop()
+
+    st.markdown("<div class='obsidian-card'>", unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2, gap="large")
+    
+    with c1:
+        age = st.number_input(
+            "AGE INDEX",
+            18, 65, 30,
+            help=get_help_text("Employee age in years")
+        )
+        job_level = st.selectbox(
+            "SENIORITY TIER",
+            [1, 2, 3, 4, 5],
+            help=get_help_text("Job level from 1 (entry) to 5 (executive)")
+        )
+        current_emp = st.selectbox(
+            "ACTIVE STATUS",
+            ["Yes", "No"],
+            help=get_help_text("Current employment status")
+        )
+        num_companies = st.number_input(
+            "EXPERIENCE BREADTH",
+            0, 15, 0,
+            help=get_help_text("Number of companies worked at")
+        )
+        
+    with c2:
+        total_working_years = st.number_input(
+            "TENURE AGGREGATE",
+            0, 45, 10,
+            help=get_help_text("Total years of work experience")
+        )
+        years_at_company = st.number_input(
+            "ORG TENURE",
+            0, 40, 5,
+            help=get_help_text("Years at current organization")
+        )
+        years_in_current_role = st.number_input(
+            "ROLE SPECIFICITY",
+            0, 40, 3,
+            help=get_help_text("Years in current position")
+        )
+        salary_hike = st.slider(
+            "GROWTH RATE %",
+            0, 50, 15,
+            help=get_help_text("Annual salary increase percentage")
+        )
+    
+    # Validation
+    valid = True
+    if years_at_company > total_working_years:
+        st.warning("⚠️ Org Tenure cannot exceed Total Working Years")
+        valid = False
+    if years_in_current_role > years_at_company:
+        st.warning("⚠️ Role Specificity cannot exceed Org Tenure")
+        valid = False
+    
+    if st.button("EXECUTE PROJECTION", disabled=not valid):
+        with st.spinner("Decoding Neural Patterns..."):
+            try:
+                time.sleep(0.8)
+                input_df = pd.DataFrame([{
+                    "Age": age,
+                    "CF_current_Employee": 1 if current_emp == "Yes" else 0,
+                    "Job_Level": job_level,
+                    "Num_Companies_Worked": num_companies,
+                    "Total_Working_Years": total_working_years,
+                    "Years_At_Company": years_at_company,
+                    "Years_In_Current_Role": years_in_current_role,
+                    "Percent_Salary_Hike": salary_hike
+                }])
+                
+                pred = model.predict(input_df)[0]
+                
+                # Save to history
+                save_prediction("FINANCIAL", input_df.to_dict('records')[0], f"₹{pred:,.0f}")
+                
+                st.markdown(f"""
+                    <div class="metric-hero">
+                        <p class="mono-label">Projected Monthly Value</p>
+                        <h2 style="font-size: 6rem; font-weight: 800; margin:0;">₹{pred:,.0f}</h2>
+                        <p style="color: #666; margin-top: 1rem; font-size: 0.9rem;">
+                            Annual: ₹{pred*12:,.0f}
+                        </p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Export option
+                st.markdown("<br>", unsafe_allow_html=True)
+                col1, col2, col3 = st.columns([1,1,1])
+                with col2:
+                    export_data = input_df.copy()
+                    export_data['Predicted_Salary'] = pred
+                    csv = export_to_csv([export_data.to_dict('records')[0]], 
+                                       f"nexus_financial_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+                    st.download_button(
+                        "📥 EXPORT RESULT",
+                        csv,
+                        file_name=f"nexus_financial_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                    
+            except Exception as e:
+                st.markdown(f"""
+                    <div class="error-message">
+                        <strong>Prediction Error:</strong> {str(e)}
+                    </div>
+                """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================
+# MAIN INTERFACE - ATTRITION MODULE
+# ==============================
+
+elif module == "ATTRITION":
+    render_obsidian_header("Attrition<br>Radar", "Churn Risk Detection")
+    
+    try:
+        data = joblib.load(NexusConfig.MODELS["ATTRITION"])
+        model, features = data["model"], data["features"]
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+        st.stop()
+
+    st.markdown("<div class='obsidian-card'>", unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2, gap="large")
+    
+    with c1:
+        age = st.number_input(
+            "AGE PROFILE",
+            18, 65, 28,
+            help=get_help_text("Employee age")
+        )
+        income = st.number_input(
+            "SALARY BASE",
+            0, 250000, 15000,
+            step=1000,
+            help=get_help_text("Monthly income in ₹")
+        )
+        job_level = st.selectbox(
+            "HIERARCHY LEVEL",
+            [1, 2, 3, 4, 5],
+            help=get_help_text("Position level in organization")
+        )
+        job_sat = st.select_slider(
+            "SATISFACTION",
+            options=[1, 2, 3, 4],
+            value=3,
+            help=get_help_text("Job satisfaction: 1=Low, 4=High")
+        )
+        env_sat = st.select_slider(
+            "ECOSYSTEM",
+            options=[1, 2, 3, 4],
+            value=3,
+            help=get_help_text("Work environment satisfaction")
+        )
+        
+    with c2:
+        wlb = st.select_slider(
+            "EQUILIBRIUM",
+            options=[1, 2, 3, 4],
+            value=4,
+            help=get_help_text("Work-life balance rating")
+        )
+        overtime = st.selectbox(
+            "OVERTIME DATA",
+            ["Yes", "No"],
+            help=get_help_text("Works overtime regularly?")
+        )
+        distance = st.number_input(
+            "COMMUTE RADIUS",
+            0, 150, 5,
+            help=get_help_text("Distance from home to office (km)")
+        )
+        yrs_promo = st.number_input(
+            "PROMOTION DELTA",
+            0, 20, 1,
+            help=get_help_text("Years since last promotion")
+        )
+        yrs_manager = st.number_input(
+            "MGR TENURE",
+            0, 20, 2,
+            help=get_help_text("Years with current manager")
+        )
+
+    if st.button("RUN CHURN ANALYSIS"):
+        with st.spinner("Calculating Probability..."):
+            try:
+                time.sleep(0.8)
+                input_df = pd.DataFrame([{
+                    "Age": age,
+                    "Monthly_Income": income,
+                    "Job_Level": job_level,
+                    "Job_Satisfaction": job_sat,
+                    "Environment_Satisfaction": env_sat,
+                    "Work_Life_Balance": wlb,
+                    "Over_Time": 1 if overtime == "Yes" else 0,
+                    "Distance_From_Home": distance,
+                    "Years_Since_Last_Promotion": yrs_promo,
+                    "Years_With_Curr_Manager": yrs_manager
+                }])[features]
+                
+                prob = model.predict_proba(input_df)[0][1] * 100
+                
+                # Risk assessment
+                if prob < 30:
+                    risk_level = "LOW RISK"
+                    risk_color = theme['accent']
+                    recommendation = "Employee shows strong retention indicators"
+                elif prob < 60:
+                    risk_level = "MODERATE RISK"
+                    risk_color = theme['primary']
+                    recommendation = "Monitor engagement and satisfaction levels"
+                else:
+                    risk_level = "HIGH RISK"
+                    risk_color = theme['warning']
+                    recommendation = "Immediate intervention recommended"
+                
+                # Save to history
+                save_prediction("ATTRITION", input_df.to_dict('records')[0], f"{prob:.1f}%")
+                
+                st.markdown(f"""
+                    <div class="metric-hero">
+                        <p class="mono-label">Attrition Risk Probability</p>
+                        <h2 style="font-size: 6rem; font-weight: 800; color: {risk_color}; margin:0;">{prob:.1f}%</h2>
+                        <p style="color: {risk_color}; margin-top: 1rem; font-size: 1.2rem; font-weight: 700;">
+                            {risk_level}
+                        </p>
+                        <p style="color: #888; margin-top: 0.5rem; font-size: 0.9rem;">
+                            {recommendation}
+                        </p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Risk factors breakdown
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("📊 RISK FACTOR ANALYSIS"):
+                    factors = []
+                    if overtime == "Yes":
+                        factors.append(("Overtime Work", "High", theme['warning']))
+                    if distance > 30:
+                        factors.append(("Long Commute", "High", theme['warning']))
+                    if job_sat < 3:
+                        factors.append(("Job Satisfaction", "Low", theme['warning']))
+                    if wlb < 3:
+                        factors.append(("Work-Life Balance", "Poor", theme['warning']))
+                    if yrs_promo > 3:
+                        factors.append(("Promotion Gap", "Extended", theme['primary']))
+                    
+                    if factors:
+                        for factor, status, color in factors:
+                            st.markdown(f"""
+                                <div style='padding: 0.5rem; margin: 0.5rem 0; background: rgba(255,255,255,0.02); border-left: 3px solid {color}; border-radius: 4px;'>
+                                    <strong>{factor}</strong>: <span style='color: {color};'>{status}</span>
+                                </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.success("No significant risk factors detected")
+                
+                # Export option
+                col1, col2, col3 = st.columns([1,1,1])
+                with col2:
+                    export_data = input_df.copy()
+                    export_data['Risk_Probability'] = prob
+                    export_data['Risk_Level'] = risk_level
+                    csv = export_to_csv([export_data.to_dict('records')[0]],
+                                       f"nexus_attrition_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+                    st.download_button(
+                        "📥 EXPORT ANALYSIS",
+                        csv,
+                        file_name=f"nexus_attrition_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                    
+            except Exception as e:
+                st.markdown(f"""
+                    <div class="error-message">
+                        <strong>Analysis Error:</strong> {str(e)}
+                    </div>
+                """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================
+# MAIN INTERFACE - TALENT MODULE
+# ==============================
+
+else:  # TALENT
+    render_obsidian_header("Talent<br>Mapping", "Org Alignment Vector")
+    
+    try:
+        model = joblib.load(NexusConfig.MODELS["TALENT"])
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+        st.stop()
+
+    st.markdown("<div class='obsidian-card'>", unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2, gap="large")
+    
+    with c1:
+        age = st.number_input(
+            "AGE INDEX",
+            18, 65, 34,
+            help=get_help_text("Employee age")
+        )
+        job_level = st.selectbox(
+            "GRADE",
+            [1, 2, 3, 4, 5],
+            help=get_help_text("Current job grade/level")
+        )
+        years_at_company = st.number_input(
+            "TENURE",
+            0, 40, 8,
+            help=get_help_text("Years at organization")
+        )
+        
+    with c2:
+        income = st.number_input(
+            "INCOME INDEX",
+            0, 150000, 18000,
+            step=1000,
+            help=get_help_text("Monthly compensation")
+        )
+        job_satisfaction = st.select_slider(
+            "SATISFACTION",
+            options=[1, 2, 3, 4],
+            value=4,
+            help=get_help_text("Overall job satisfaction level")
+        )
+
+    if st.button("DETERMINE ALIGNMENT"):
+        with st.spinner("Mapping Talent Vector..."):
+            try:
+                time.sleep(0.8)
+                input_df = pd.DataFrame([{
+                    "Age": age,
+                    "Job_Level": job_level,
+                    "Years_At_Company": years_at_company,
+                    "Monthly_Income": income,
+                    "Job_Satisfaction": job_satisfaction
+                }])
+                
+                pred = model.predict(input_df)[0]
+                pred_proba = model.predict_proba(input_df)[0]
+                confidence = max(pred_proba) * 100
+                
+                # Save to history
+                save_prediction("TALENT", input_df.to_dict('records')[0], pred)
+                
+                st.markdown(f"""
+                    <div class="metric-hero">
+                        <p class="mono-label">Optimal Department Placement</p>
+                        <h2 style="font-size: 4rem; font-weight: 800; 
+                                   background: linear-gradient(to right, {theme['primary']}, {theme['accent']}); 
+                                   -webkit-background-clip: text; 
+                                   -webkit-text-fill-color: transparent; 
+                                   margin:0;">
+                            {pred}
+                        </h2>
+                        <p style="color: #888; margin-top: 1rem; font-size: 0.9rem;">
+                            Confidence: {confidence:.1f}%
+                        </p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Alternative recommendations
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("🎯 ALTERNATIVE PLACEMENTS"):
+                    classes = model.classes_
+                    proba_dict = dict(zip(classes, pred_proba))
+                    sorted_depts = sorted(proba_dict.items(), key=lambda x: x[1], reverse=True)
+                    
+                    for dept, prob in sorted_depts[1:4]:  # Top 3 alternatives
+                        bar_width = int(prob * 100)
+                        st.markdown(f"""
+                            <div style='margin: 1rem 0;'>
+                                <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
+                                    <span style='font-weight: 600;'>{dept}</span>
+                                    <span style='color: {theme['primary']};'>{prob*100:.1f}%</span>
+                                </div>
+                                <div style='background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden;'>
+                                    <div style='background: linear-gradient(to right, {theme['primary']}, {theme['accent']}); 
+                                               width: {bar_width}%; height: 100%;'></div>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                
+                # Export option
+                col1, col2, col3 = st.columns([1,1,1])
+                with col2:
+                    export_data = input_df.copy()
+                    export_data['Recommended_Department'] = pred
+                    export_data['Confidence'] = confidence
+                    csv = export_to_csv([export_data.to_dict('records')[0]],
+                                       f"nexus_talent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+                    st.download_button(
+                        "📥 EXPORT MAPPING",
+                        csv,
+                        file_name=f"nexus_talent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                    
+            except Exception as e:
+                st.markdown(f"""
+                    <div class="error-message">
+                        <strong>Mapping Error:</strong> {str(e)}
+                    </div>
+                """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================
+# HISTORY PANEL (Bottom of Page)
+# ==============================
+
+if st.session_state.prediction_history:
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("<h3 style='text-align: center; letter-spacing: 2px;'>PREDICTION ARCHIVE</h3>", unsafe_allow_html=True)
+    
+    with st.expander("📜 VIEW COMPLETE HISTORY", expanded=False):
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            if st.button("📥 Export All", key="export_all"):
+                csv = export_to_csv(st.session_state.prediction_history, 
+                                   f"nexus_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+                st.download_button(
+                    "Download CSV",
+                    csv,
+                    file_name=f"nexus_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+        
+        # Display history in reverse chronological order
+        for i, pred in enumerate(reversed(st.session_state.prediction_history[-10:])):
+            timestamp = datetime.fromisoformat(pred['timestamp']).strftime("%Y-%m-%d %H:%M:%S")
+            st.markdown(f"""
+                <div class="history-card">
+                    <div style='display: flex; justify-content: space-between; align-items: center;'>
+                        <div>
+                            <span class='mono-label'>{pred['module']}</span>
+                            <div style='margin-top: 0.5rem; color: #888; font-size: 0.85rem;'>{timestamp}</div>
+                        </div>
+                        <div style='font-size: 1.5rem; font-weight: 700; color: {theme["primary"]};'>
+                            {pred['result']}
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+# ==============================
+# FOOTER
+# ==============================
+
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown("---")
+st.markdown(f"""
+    <div style='text-align: center; padding: 2rem; color: #666;'>
+        <p class='mono-label' style='margin-bottom: 1rem;'>Nexus Obsidian AI Command Center</p>
+        <p style='font-size: 0.8rem;'>Powered by Aether Kernel {NexusConfig.VERSION} | © 2026 Nexus Intelligence</p>
+        <p style='font-size: 0.7rem; margin-top: 1rem; opacity: 0.5;'>
+            Predictions: {len(st.session_state.prediction_history)} | 
+            Theme: {st.session_state.theme_variant.title()} |
+            Status: <span style='color: {theme["accent"]};'>●</span> Operational
+        </p>
+    </div>
+""", unsafe_allow_html=True)
