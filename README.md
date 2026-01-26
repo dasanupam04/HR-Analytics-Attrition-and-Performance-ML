@@ -130,10 +130,28 @@ A correlation heatmap is generated to understand relationships between numerical
 
 The program will:
   
-  Train models
-  Display performance metrics
-  Allow manual input for real-time predictions
+    Train models
+    Display performance metrics
+    Allow manual input for real-time predictions
 
 
 
+💼 Business Use Cases
 
+    ✔ Salary benchmarking
+    ✔ Identifying high attrition risk employees
+    ✔ Workforce planning & department analysis
+    ✔ HR decision support systems
+
+📌 Future Improvements
+
+    Hyperparameter tuning
+    Model explainability (SHAP / feature importance dashboards)
+    Web app deployment (Streamlit / Flask)
+    Automated data pipeline
+
+
+👨‍💻 Author
+
+Anupam
+HR Analytics & Machine Learning Enthusiast
