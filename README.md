@@ -8,9 +8,19 @@ This project demonstrates how HR data can be transformed into actionable intelli
 
 **🚀 Project Overview**
 
-This repository builds multiple predictive models using employee data to help HR teams:  \
+This repository builds multiple predictive models using employee data to help HR teams:
+
       1. Predict Monthly Income (Regression)
       2. Predict Employee Attrition Risk (Classification)
       3. Classify Employee Department (Multi-class Classification)
 
 All models are trained using real-world HR-style features such as job level, experience, satisfaction scores, and compensation data.
+
+
+
+**🧠 Models Implemented**
+1️⃣ Monthly Income Prediction
+
+Type: Linear Regression
+Goal: Estimate an employee’s monthly salary based on experience, job level, and career history.
+
