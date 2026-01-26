@@ -19,8 +19,32 @@ All models are trained using real-world HR-style features such as job level, exp
 
 
 **🧠 Models Implemented**
+
 1️⃣ Monthly Income Prediction
 
 Type: Linear Regression
+
 Goal: Estimate an employee’s monthly salary based on experience, job level, and career history.
+
+Key Features Used:
+      
+      Age
+      Job Level
+      Total Working Years
+      Years at Company
+      Years in Current Role
+      Number of Companies Worked
+      Percent Salary Hike
+      Current Employee Status
+      
+
+Evaluation Metrics:
+     
+     MAE (Mean Absolute Error)
+     MSE / RMSE
+     R² Score
+     Adjusted R²
+     Model saved as: hr_model.pkl
+
+
 
