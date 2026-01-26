@@ -117,12 +117,12 @@ A correlation heatmap is generated to understand relationships between numerical
 
 *▶️ How to Run*
 
-    Clone the repository
-    Place the dataset CSV file in the project directory
-    Install dependencies:
+1. Clone the repository
+2. Place the dataset CSV file in the project directory
+3. Install dependencies:
+   
+       pip install pandas numpy matplotlib seaborn scikit-learn joblib
 
-
-    pip install pandas numpy matplotlib seaborn scikit-learn joblib
 
 
 
